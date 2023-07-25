@@ -577,7 +577,7 @@ int main( int argc, char** argv )
                 if( nwipe_options.dry_start_time.tm_hour || nwipe_options.dry_start_time.tm_mday )
                 {
                     timestamp_new = localtime( &c2[i]->start_time );
-                    timestamp_now = &nwipe_options.start_time;
+                    timestamp_now = &nwipe_options.dry_start_time;
                     if( timestamp_now->tm_mday )
                     {
                         timestamp_new->tm_year = timestamp_now->tm_year;
