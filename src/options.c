@@ -143,7 +143,7 @@ int nwipe_options_parse( int argc, char** argv )
     nwipe_options.verbose = 0;
     nwipe_options.verify = NWIPE_VERIFY_LAST;
     nwipe_options.dryrun = 0;
-    nwipe_options.dry_start_time = { 0 };
+    memset( &nwipe_options.dry_start_time, 0, sizeof(struct tm) );
     memset( nwipe_options.logfile, '\0', sizeof( nwipe_options.logfile ) );
 
     /* Initialise each of the strings in the excluded drives array */
@@ -541,9 +541,9 @@ void nwipe_options_log( void )
     nwipe_log( NWIPE_LOG_NOTICE, "  rounds   = %i", nwipe_options.rounds );
     nwipe_log( NWIPE_LOG_NOTICE, "  sync     = %i", nwipe_options.sync );
     nwipe_log( NWIPE_LOG_NOTICE, "  dryrun   = %i", nwipe_options.dryrun );
-    strptime( buffer, 26, "%Y-%m-%d", &nwipe_options.dry_start_time );
+    strftime( buffer, 26, "%Y-%m-%d", &nwipe_options.dry_start_time );
     nwipe_log( NWIPE_LOG_NOTICE, "  startdate= %Y-%m-%d", buffer );
-    strptime( buffer, 26, "%H:%M:%S", &nwipe_options.dry_start_time );
+    strftime( buffer, 26, "%H:%M:%S", &nwipe_options.dry_start_time );
     nwipe_log( NWIPE_LOG_NOTICE, "  starttime= %H:%M:%S", buffer );
 
     switch( nwipe_options.verify )
