@@ -87,4 +87,12 @@ void replace_non_alphanumeric( char*, char );
  */
 void convert_double_to_string( char*, double );
 
+/**
+ * The generateRandomDouble function takes in the minimum and maximum values as parameters.
+ * It calculates the range by subtracting the minimum from the maximum.
+ * It generates a random double value between 0 and 1 using (double)rand() / RAND_MAX.
+ * It scales the random value to the desired range by multiplying it with the range and adding the minimum.
+ */
+double generateRandomDouble( double, double );
+
 #endif /* HPA_DCO_H_ */

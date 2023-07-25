@@ -103,6 +103,10 @@ int main( int argc, char** argv )
     int fatal_errors_flag = 0;
     int non_fatal_errors_flag = 0;
 
+    /* Auxiliar time variables */
+    struct tm* timestamp_now;
+    struct tm* timestamp_new;
+
     /* Two arrays are used, containing pointers to the the typedef for each disk */
     /* The first array (c1) points to all devices, the second points to only     */
     /* the disks selected for wiping.                                            */
@@ -418,6 +422,9 @@ int main( int argc, char** argv )
         /* The wipe has been initiated */
         global_wipe_status = 1;
 
+        if( nwipe_options.dryrun )
+            srand( time( NULL ) );
+
         for( i = 0; i < nwipe_selected; i++ )
         {
             /* A result buffer for the BLKGETSIZE64 ioctl. */
@@ -563,18 +570,47 @@ int main( int argc, char** argv )
                            c2[i]->device_size );
             }
 
-            /* Fork a child process. */
-            errno = pthread_create( &c2[i]->thread, NULL, nwipe_options.method, (void*) c2[i] );
-            if( errno )
+            if( nwipe_options.dryrun )
             {
-                nwipe_perror( errno, __FUNCTION__, "pthread_create" );
-                if( !nwipe_options.nogui )
-                    nwipe_gui_free();
-                return errno;
+                c2[i]->wipe_status = 0;
+                time( &c2[i]->start_time );
+                if( nwipe_options.start_time )
+                {
+                    timestamp_new = localtime( &c2[i]->start_time );
+                    timestamp_now = localtime( &nwipe_options.start_time );
+                    if( timestamp_now->tm_mday )
+                    {
+                        timestamp_new->tm_year = timestamp_now->tm_year;
+                        timestamp_new->tm_mon = timestamp_now->tm_mon;
+                        timestamp_new->tm_mday = timestamp_now->tm_mday;
+                    }
+                    if( timestamp_now->tm_hour || timestamp_now->tm_min || timestamp_now->tm_sec )
+                    {
+                        timestamp_new->tm_hour = timestamp_now->tm_hour;
+                        timestamp_new->tm_min = timestamp_now->tm_min;
+                        timestamp_new->tm_sec = timestamp_now->tm_sec;
+                    }
+                    c2[i]->start_time = mktime( timestamp_now );
+                }
+                c2[i]->end_time = c2[i]->start_time
+                    + c2[i]->Calculated_real_max_size_in_bytes
+                        / ( 150982269 * ( 1 + generateRandomDouble( -0.5, 0.5 ) ) );
             }
             else
             {
-                wipe_threads_started = 1;
+                /* Fork a child process. */
+                errno = pthread_create( &c2[i]->thread, NULL, nwipe_options.method, (void*) c2[i] );
+                if( errno )
+                {
+                    nwipe_perror( errno, __FUNCTION__, "pthread_create" );
+                    if( !nwipe_options.nogui )
+                        nwipe_gui_free();
+                    return errno;
+                }
+                else
+                {
+                    wipe_threads_started = 1;
+                }
             }
         }
     }

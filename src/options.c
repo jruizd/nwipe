@@ -53,8 +53,11 @@ int nwipe_options_parse( int argc, char** argv )
     /* Array index variable. */
     int i;
 
+    /* Auxiliar variable to get start date and time */
+    struct tm start_tm;
+
     /* The list of acceptable short options. */
-    char nwipe_options_short[] = "Vvhl:m:p:qr:e:";
+    char nwipe_options_short[] = "Vvhl:m:p:qr:e:nd:t:";
 
     /* The list of acceptable long options. */
     static struct option nwipe_options_long[] = {
@@ -112,6 +115,15 @@ int nwipe_options_parse( int argc, char** argv )
         /* Display program version. */
         { "version", no_argument, 0, 'V' },
 
+        /* Dry run, do not wipe anything. */
+        { "dryrun", no_argument, 0, 'n' },
+
+        /* Start date, when pretending to wipe */
+        { "startdate", required_argument, 0, 'd' },
+
+        /* Start time, when pretending to wipe */
+        { "starttime", required_argument, 0, 't' },
+
         /* Requisite padding for getopt(). */
         { 0, 0, 0, 0 } };
 
@@ -130,6 +142,8 @@ int nwipe_options_parse( int argc, char** argv )
     nwipe_options.sync = DEFAULT_SYNC_RATE;
     nwipe_options.verbose = 0;
     nwipe_options.verify = NWIPE_VERIFY_LAST;
+    nwipe_options.dryrun = 0;
+    nwipe_options.start_time = 0;
     memset( nwipe_options.logfile, '\0', sizeof( nwipe_options.logfile ) );
 
     /* Initialise each of the strings in the excluded drives array */
@@ -357,6 +371,20 @@ int nwipe_options_parse( int argc, char** argv )
                 }
                 break;
 
+            case 'n': /* Dry Run */
+                nwipe_options.dryrun = 1;
+                break;
+
+            case 'd': /* Start date */
+                strptime( optarg, "%Y-%m-%d", &start_tm );
+                nwipe_options.start_time = mktime( &start_tm );
+                break;
+
+            case 't': /* Start time */
+                strptime( optarg, "%H-%M-%S", &start_tm );
+                nwipe_options.start_time = mktime( &start_tm );
+                break;
+
             case 'h': /* Display help. */
 
                 display_help();
@@ -430,6 +458,7 @@ void nwipe_options_log( void )
     extern nwipe_prng_t nwipe_twister;
     extern nwipe_prng_t nwipe_isaac;
     extern nwipe_prng_t nwipe_isaac64;
+    struct tm* tm_info;
 
     /**
      *  Prints a manifest of options to the log.
@@ -504,6 +533,10 @@ void nwipe_options_log( void )
     nwipe_log( NWIPE_LOG_NOTICE, "  quiet    = %i", nwipe_options.quiet );
     nwipe_log( NWIPE_LOG_NOTICE, "  rounds   = %i", nwipe_options.rounds );
     nwipe_log( NWIPE_LOG_NOTICE, "  sync     = %i", nwipe_options.sync );
+    nwipe_log( NWIPE_LOG_NOTICE, "  dryrun   = %i", nwipe_options.dryrun );
+    tm_info = localtime( &nwipe_options.start_time );
+    nwipe_log( NWIPE_LOG_NOTICE, "  startdate= %Y-%m-%d", tm_info );
+    nwipe_log( NWIPE_LOG_NOTICE, "  starttime= %H:%M:%S", tm_info );
 
     switch( nwipe_options.verify )
     {
@@ -569,6 +602,9 @@ void display_help()
     puts( "                          one                    - Overwrite with ones (0xFF)" );
     puts( "                          verify_zero            - Verifies disk is zero filled" );
     puts( "                          verify_one             - Verifies disk is 0xFF filled\n" );
+    puts( "  -n, --dryrun            Only pretend to wipe disks, but do nothing\n" );
+    puts( "  -d, --startdate         Specify start date in YYYY-MM-DD format (only for dryrun)\n" );
+    puts( "  -t, --starttime         Specify start time in HH:MM:SS format (only for dryrun)\n" );
     puts( "  -l, --logfile=FILE      Filename to log to. Default is STDOUT\n" );
     puts( "  -p, --prng=METHOD       PRNG option (mersenne|twister|isaac|isaac64)\n" );
     puts( "  -q, --quiet             Anonymize logs and the GUI by removing unique data, i.e." );

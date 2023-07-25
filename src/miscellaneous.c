@@ -266,3 +266,10 @@ void convert_double_to_string( char* output_str, double value )
     }
     output_str[idx3] = 0;
 }
+
+double generateRandomDouble( double min, double max )
+{
+    double range = max - min;
+    double randomValue = ( (double) rand() / RAND_MAX ) * range + min;
+    return randomValue;
+}
