@@ -53,11 +53,11 @@ int nwipe_options_parse( int argc, char** argv )
     /* Array index variable. */
     int i;
 
-    /* Auxiliar variable to get start date and time */
-    struct tm start_tm;
-
     /* The list of acceptable short options. */
     char nwipe_options_short[] = "Vvhl:m:p:qr:e:nd:t:";
+
+    /* Auxiliar */
+    char buffer[30];
 
     /* The list of acceptable long options. */
     static struct option nwipe_options_long[] = {
@@ -372,17 +372,24 @@ int nwipe_options_parse( int argc, char** argv )
                 break;
 
             case 'n': /* Dry Run */
+
                 nwipe_options.dryrun = 1;
                 break;
 
             case 'd': /* Start date */
-                strptime( optarg, "%Y-%m-%d", &start_tm );
-                nwipe_options.start_time = mktime( &start_tm );
+
+                strptime( optarg, "%Y-%m-%d", &nwipe_options.dry_start_time );
+                fprintf( stderr, "optarg=%s", optarg );
+                strftime( buffer, 26, "%Y:%m:%d %H:%M:%S", &nwipe_options.dry_start_time );
+                fprintf( stderr, "startdate=%s", buffer );
                 break;
 
             case 't': /* Start time */
-                strptime( optarg, "%H-%M-%S", &start_tm );
-                nwipe_options.start_time = mktime( &start_tm );
+
+                strptime( optarg, "%H:%M:%S", &nwipe_options.dry_start_time );
+                fprintf( stderr, "optarg=%s", optarg );
+                strftime( buffer, 26, "%Y:%m:%d %H:%M:%S", &nwipe_options.dry_start_time );
+                fprintf( stderr, "starttime=%s", buffer );
                 break;
 
             case 'h': /* Display help. */

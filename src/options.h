@@ -65,7 +65,7 @@ typedef struct
     int sync;  // A flag to indicate whether and how often writes should be sync'd.
     int verbose;  // Make log more verbose
     int dryrun;  // A flag to indicate whether will only pretend to wipe disks but not doing anything really.
-    time_t start_time;  // Start time (only when dryrun)
+    struct tm dry_start_time;  // Start time (only when dryrun)
     nwipe_verify_t verify;  // A flag to indicate whether writes should be verified.
 } nwipe_options_t;
 
