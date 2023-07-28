@@ -33,6 +33,9 @@
 #include <stdint.h>
 #include <time.h>
 #include <libconfig.h>
+#include <string.h>
+#include <strings.h>
+#include <sys/stat.h>
 
 #include "nwipe.h"
 #include "context.h"
@@ -148,6 +151,7 @@ const char* selection_footer_add_customer = "S=Save J=Down K=Up Space=Select Bac
 const char* selection_footer_add_customer_yes_no = "Save Customer Details Y/N";
 const char* end_wipe_footer = "B=[Toggle between dark\\blank\\blue screen] Ctrl+C=Quit";
 const char* rounds_footer = "Left=Erase Esc=Cancel Ctrl+C=Quit";
+const char* selection_footer_text_entry = "Esc=Cancel Ctrl+C=Quit";
 
 const char* wipes_finished_footer = "Wipe finished - press enter to exit. Logged to STDOUT";
 
@@ -1233,6 +1237,7 @@ void nwipe_gui_select( int count, nwipe_context_t** c )
                     break;
 
                 case 'c':
+                case 'C':
                     /* main configuration menu */
                     validkeyhit = 1;
 
@@ -3586,6 +3591,9 @@ void nwipe_gui_list( int count, char* window_title, char** list, int* selected_e
     /* Flag, Valid key hit = 1, anything else = 0 */
     int validkeyhit;
 
+    /* Processed customer entry as displayed in selection dialog */
+    char* display_line;
+
     /* Get the terminal size */
     getmaxyx( stdscr, stdscr_lines, stdscr_cols );
 
@@ -3603,6 +3611,9 @@ void nwipe_gui_list( int count, char* window_title, char** list, int* selected_e
     /* Used in the selection loop to trap a failure of the timeout(), getch() mechanism to block for the designated
      * period */
     int expected_iterations;
+
+    /* General Indexes */
+    int idx, idx2;
 
     time_t previous_iteration_timestamp;
 
@@ -3694,8 +3705,28 @@ void nwipe_gui_list( int count, char* window_title, char** list, int* selected_e
              * and the else part will log the out of bounds values for debugging */
             if( i + offset >= 0 && i + offset < count )
             {
-                /* print a entry from the list */
-                wprintw( main_window, "%s ", list[i + offset] );
+                /* print a entry from the list, we need to process the string before display,
+                 * removing the double quotes that are used in csv for identifying the start & end of a field.
+                 */
+                if( ( display_line = calloc( sizeof( char ), strlen( list[i + offset] ) ) ) )
+                {
+                    idx = 0;
+                    idx2 = 0;
+                    while( list[i + offset][idx] != 0 )
+                    {
+                        if( list[i + offset][idx] == '"' )
+                        {
+                            idx++;
+                        }
+                        else
+                        {
+                            display_line[idx2++] = list[i + offset][idx++];
+                        }
+                    }
+                    display_line[idx2] = 0;
+                    wprintw( main_window, "%s ", display_line );
+                    free( display_line );
+                }
             }
             else
             {
@@ -3854,7 +3885,7 @@ void nwipe_gui_list( int count, char* window_title, char** list, int* selected_e
                 case KEY_BACKSPACE:
                 case KEY_LEFT:
                 case 127:
-
+                    *selected_entry = 1;
                     return;
                     break;
 
@@ -4098,12 +4129,10 @@ void nwipe_gui_add_customer( void )
     } while( save != YES && keystroke != 's' && keystroke != KEY_ENTER && keystroke != ' ' && keystroke != 10
              && terminate_signal != 1 );
 
-    /* If save customer details selected */
+    /* If save set, or user pressed s or S then save the customer details */
     if( keystroke == 's' || keystroke == 'S' || save == 1 )
     {
-        /* NOTE Append a csv line to /etc/nwipe/customers.csv */
-
-        /* NOTE ADD CODE HERE NOTE */
+        write_customer_csv_entry( customer_name, customer_address, customer_contact_name, customer_contact_phone );
     }
 
 } /* end of nwipe_gui_add_customer( void ) */
@@ -4138,15 +4167,18 @@ void nwipe_gui_add_customer_name( char* customer_name )
 
     /* Update the footer window. */
     werase( footer_window );
-    nwipe_gui_title( footer_window, rounds_footer );
+    nwipe_gui_title( footer_window, selection_footer_text_entry );
     wrefresh( footer_window );
+
+    /* Set the buffer index to point to the end of the string, i.e the NULL */
+    idx = strlen( customer_name );
 
     do
     {
         /* Erase the main window. */
         werase( main_window );
 
-        nwipe_gui_create_all_windows_on_terminal_resize( 0, selection_footer );
+        nwipe_gui_create_all_windows_on_terminal_resize( 0, selection_footer_text_entry );
 
         /* Add a border. */
         box( main_window, 0, 0 );
@@ -4242,15 +4274,18 @@ void nwipe_gui_add_customer_address( char* customer_address )
 
     /* Update the footer window. */
     werase( footer_window );
-    nwipe_gui_title( footer_window, rounds_footer );
+    nwipe_gui_title( footer_window, selection_footer_text_entry );
     wrefresh( footer_window );
+
+    /* Set the buffer index to point to the end of the string, i.e the NULL */
+    idx = strlen( customer_address );
 
     do
     {
         /* Erase the main window. */
         werase( main_window );
 
-        nwipe_gui_create_all_windows_on_terminal_resize( 0, selection_footer );
+        nwipe_gui_create_all_windows_on_terminal_resize( 0, selection_footer_text_entry );
 
         /* Add a border. */
         box( main_window, 0, 0 );
@@ -4346,15 +4381,18 @@ void nwipe_gui_add_customer_contact_name( char* customer_contact_name )
 
     /* Update the footer window. */
     werase( footer_window );
-    nwipe_gui_title( footer_window, rounds_footer );
+    nwipe_gui_title( footer_window, selection_footer_text_entry );
     wrefresh( footer_window );
+
+    /* Set the buffer index to point to the end of the string, i.e the NULL */
+    idx = strlen( customer_contact_name );
 
     do
     {
         /* Erase the main window. */
         werase( main_window );
 
-        nwipe_gui_create_all_windows_on_terminal_resize( 0, selection_footer );
+        nwipe_gui_create_all_windows_on_terminal_resize( 0, selection_footer_text_entry );
 
         /* Add a border. */
         box( main_window, 0, 0 );
@@ -4450,15 +4488,18 @@ void nwipe_gui_add_customer_contact_phone( char* customer_contact_phone )
 
     /* Update the footer window. */
     werase( footer_window );
-    nwipe_gui_title( footer_window, rounds_footer );
+    nwipe_gui_title( footer_window, selection_footer_text_entry );
     wrefresh( footer_window );
+
+    /* Set the buffer index to point to the end of the string, i.e the NULL */
+    idx = strlen( customer_contact_phone );
 
     do
     {
         /* Erase the main window. */
         werase( main_window );
 
-        nwipe_gui_create_all_windows_on_terminal_resize( 0, selection_footer );
+        nwipe_gui_create_all_windows_on_terminal_resize( 0, selection_footer_text_entry );
 
         /* Add a border. */
         box( main_window, 0, 0 );

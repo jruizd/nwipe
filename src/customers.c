@@ -83,6 +83,8 @@ void customer_processes( int mode )
     /* Read the customers.csv file and populate the list array with the data */
     result_size = fread( raw_buffer, size, 1, fptr );
 
+    fclose( fptr );
+
     /* Validate csv contents. With the exception of line feeds,
      * remove non printable characters and move to a secondary buffer.
      */
@@ -90,8 +92,9 @@ void customer_processes( int mode )
     idx2 = 0;
     while( idx < size )
     {
-        if( ( raw_buffer[idx] > 0x20 && raw_buffer[idx] < 0x7F ) || raw_buffer[idx] == 0x0A )
+        if( ( raw_buffer[idx] > 0x1F && raw_buffer[idx] < 0x7F ) || raw_buffer[idx] == 0x0A )
         {
+            /* copy printable characters and line feeds but not double quotes. */
             buffer[idx2++] = raw_buffer[idx];
         }
         idx++;
@@ -179,20 +182,13 @@ void select_customers( int count, char** customer_list_array )
     /* Display the customer selection window */
     nwipe_gui_list( count, window_title, customer_list_array, &selected_entry );
 
-    nwipe_log( NWIPE_LOG_INFO, "Line selected = %d", selected_entry );
-
-    /* Save the selected customer details to nwipe's config file /etc/nwipe/nwipe.conf */
-    save_selected_customer( &customer_list_array[selected_entry - 1] );
-}
-
-void add_customer()
-{
-    char window_title[] = " Add Customer ";
-    int selected_entry = 0;
-
-    // nwipe_gui_list( count, window_title, &list[8], &selected_entry );
-
-    nwipe_log( NWIPE_LOG_INFO, "Line selected = %d", selected_entry );
+    /* Save the selected customer details to nwipe's config file /etc/nwipe/nwipe.conf
+     * If selected entry equals 0, then the customer did not select an entry so skip save.
+     */
+    if( selected_entry != 0 )
+    {
+        save_selected_customer( &customer_list_array[selected_entry - 1] );
+    }
 }
 
 void delete_customer( int count, char** customer_list_array )
@@ -203,4 +199,292 @@ void delete_customer( int count, char** customer_list_array )
     nwipe_gui_list( count, window_title, customer_list_array, &selected_entry );
 
     nwipe_log( NWIPE_LOG_INFO, "Line selected = %d", selected_entry );
+}
+
+void write_customer_csv_entry( char* customer_name,
+                               char* customer_address,
+                               char* customer_contact_name,
+                               char* customer_contact_phone )
+{
+    /**
+     * Write the attached strings in csv format to the first
+     * line after the header (line 2 of file)
+     */
+
+    FILE* fptr = 0;
+    FILE* fptr2 = 0;
+
+    size_t result_size;
+
+    /* General index variables */
+    int idx1, idx2, idx3;
+
+    /* Length of the new customer line */
+    int csv_line_length;
+
+    /* Size of the new buffer that holds old contents plus new entry */
+    int new_customers_buffer_size;
+
+    struct stat st;
+
+    extern char nwipe_customers_file[];
+    extern char nwipe_customers_file_backup[];
+    extern char nwipe_customers_file_backup_tmp[];
+
+    intmax_t existing_file_size = 0;
+
+    /* pointer to the new customer entry in csv format. */
+    char* csv_buffer = 0;
+
+    /* pointer to the buffer containing the existing customer file */
+    char* customers_buffer = 0;
+
+    /* pointer to the buffer containing the existing customer file plus the new entry */
+    char* new_customers_buffer = 0;
+
+    size_t new_customers_buffer_length;
+
+    /* Determine length of all four strings and malloc sufficient storage + 12 = 8 quotes + three colons + null */
+    csv_line_length = strlen( customer_name ) + strlen( customer_address ) + strlen( customer_contact_name )
+        + strlen( customer_contact_phone ) + 12;
+    if( !( csv_buffer = calloc( 1, csv_line_length == 0 ) ) )
+    {
+        nwipe_log( NWIPE_LOG_ERROR, "func:nwipe_gui_add_customer:csv_buffer, calloc returned NULL " );
+    }
+    else
+    {
+        /* Determine current size of the csv file containing the customers */
+        stat( nwipe_customers_file, &st );
+        existing_file_size = st.st_size;
+
+        /* calloc sufficient storage to hold the existing customers file */
+        if( !( customers_buffer = calloc( 1, existing_file_size + 1 ) ) )
+        {
+            nwipe_log( NWIPE_LOG_ERROR, "func:nwipe_gui_add_customer:customers_buffer, calloc returned NULL " );
+        }
+        else
+        {
+            /* create a third buffer which is the combined size of the previous two, i.e existing file size, plus the
+             * new customer entry + 1 (NULL) */
+            new_customers_buffer_size = existing_file_size + csv_line_length + 1;
+
+            if( !( new_customers_buffer = calloc( 1, new_customers_buffer_size ) ) )
+            {
+                nwipe_log( NWIPE_LOG_ERROR, "func:nwipe_gui_add_customer:customers_buffer, calloc returned NULL " );
+            }
+            else
+            {
+                /* Read the whole of customers.csv file into customers_buffer */
+                if( ( fptr = fopen( nwipe_customers_file, "rb" ) ) == NULL )
+                {
+                    nwipe_log( NWIPE_LOG_ERROR, "Unable to open %s", nwipe_customers_file );
+                }
+                else
+                {
+                    /* Read the customers.csv file and populate the list array with the data */
+                    if( ( result_size = fread( customers_buffer, existing_file_size, 1, fptr ) ) != 1 )
+                    {
+                        nwipe_log(
+                            NWIPE_LOG_ERROR,
+                            "func:nwipe_gui_add_customer:Error reading customers file, # bytes read not as expected "
+                            "%i bytes",
+                            result_size );
+                    }
+                    else
+                    {
+                        /* --------------------------------------------------------------------
+                         * Read the first line which is the csv header from the existing customer
+                         * buffer & write to the new buffer.
+                         */
+
+                        idx1 = 0;  // Index for the current csv buffer
+                        idx2 = 0;  // Index for the new csv buffer
+                        idx3 = 0;  // Index for new customer fields
+
+                        while( idx1 < existing_file_size && idx2 < new_customers_buffer_size )
+                        {
+                            if( customers_buffer[idx1] != LINEFEED )
+                            {
+                                new_customers_buffer[idx2++] = customers_buffer[idx1++];
+                            }
+                            else
+                            {
+                                new_customers_buffer[idx2++] = LINEFEED;
+                                break;
+                            }
+                        }
+
+                        /* --------------------------------------------------------------------------
+                         * Copy the new customer name entry so it is immediately after the csv header
+                         */
+
+                        /* Start with first entries opening quote */
+                        new_customers_buffer[idx2++] = '"';
+
+                        /* Copy the customer_name string */
+                        while( idx3 < FIELD_LENGTH && idx2 < new_customers_buffer_size && customer_name[idx3] != 0 )
+                        {
+                            new_customers_buffer[idx2++] = customer_name[idx3++];
+                        }
+
+                        /* Close customer name field with a quote */
+                        new_customers_buffer[idx2++] = '"';
+
+                        /* Insert field delimiters, we use a semi-colon, not a comma ';' */
+                        new_customers_buffer[idx2++] = ';';
+
+                        /* -----------------------------------------------------------------------------
+                         * Copy the new customer address entry so it is immediately after the csv header
+                         */
+
+                        idx3 = 0;
+
+                        /* Start with first entries opening quote */
+                        new_customers_buffer[idx2++] = '\"';
+
+                        /* Copy the customer_name string */
+                        while( idx3 < FIELD_LENGTH && idx2 < new_customers_buffer_size && customer_address[idx3] != 0 )
+                        {
+                            new_customers_buffer[idx2++] = customer_address[idx3++];
+                        }
+
+                        /* Close customer name field with a quote */
+                        new_customers_buffer[idx2++] = '\"';
+
+                        /* Insert field delimiters, we use a semi-colon, not a comma ';' */
+                        new_customers_buffer[idx2++] = ';';
+
+                        /* -----------------------------------------------------------------------------
+                         * Copy the new customer contact name entry so it is immediately after the csv header
+                         */
+
+                        idx3 = 0;
+
+                        /* Start with first entries opening quote */
+                        new_customers_buffer[idx2++] = '\"';
+
+                        /* Copy the customer_name string */
+                        while( idx3 < FIELD_LENGTH && idx2 < new_customers_buffer_size
+                               && customer_contact_name[idx3] != 0 )
+                        {
+                            new_customers_buffer[idx2++] = customer_contact_name[idx3++];
+                        }
+
+                        /* Close customer name field with a quote */
+                        new_customers_buffer[idx2++] = '\"';
+
+                        /* Insert field delimiters, we use a semi-colon, not a comma ';' */
+                        new_customers_buffer[idx2++] = ';';
+
+                        /* -----------------------------------------------------------------------------
+                         * Copy the new customer contact phone entry so it is immediately after the csv header
+                         */
+
+                        idx3 = 0;
+
+                        /* Start with first entries opening quote */
+                        new_customers_buffer[idx2++] = '\"';
+
+                        /* Copy the customer_name string */
+                        while( idx3 < FIELD_LENGTH && idx2 < new_customers_buffer_size
+                               && customer_contact_phone[idx3] != 0 )
+                        {
+                            new_customers_buffer[idx2++] = customer_contact_phone[idx3++];
+                        }
+
+                        /* Close customer name field with a quote */
+                        new_customers_buffer[idx2++] = '\"';
+
+                        /* Insert a line feed to finish the new entry */
+                        new_customers_buffer[idx2++] = LINEFEED;
+
+                        /* skip any LINEFEEDS in the existing customer entry as we just inserted one */
+                        while( customers_buffer[idx1] != 0 && customers_buffer[idx1] == LINEFEED )
+                        {
+                            idx1++;
+                        }
+
+                        /* -------------------------------------------------------------------------------
+                         * Now copy the existing customer entries, if any, immediately after the new entry
+                         */
+
+                        while( idx1 < existing_file_size && idx2 < new_customers_buffer_size )
+                        {
+                            /* Removes any nulls when copying and pasting, which would break this process? */
+                            if( customers_buffer[idx1] == 0 )
+                            {
+                                while( idx1 < existing_file_size && customers_buffer[idx1] == 0 )
+                                {
+                                    idx1++;
+                                }
+                            }
+                            new_customers_buffer[idx2++] = customers_buffer[idx1++];
+                        }
+
+                        /* Rename the customers.csv file to customers.csv.backup */
+                        if( rename( nwipe_customers_file, nwipe_customers_file_backup_tmp ) != 0 )
+                        {
+                            nwipe_log( NWIPE_LOG_ERROR,
+                                       "Unable to rename %s to %s",
+                                       nwipe_customers_file,
+                                       nwipe_customers_file_backup_tmp );
+                        }
+                        else
+                        {
+                            /* Create/open the customers.csv file */
+                            if( ( fptr2 = fopen( nwipe_customers_file, "wb" ) ) == NULL )
+                            {
+                                nwipe_log( NWIPE_LOG_ERROR, "Unable to open %s", nwipe_customers_file );
+                            }
+                            else
+                            {
+                                /* write the new customers.csv file */
+                                new_customers_buffer_length = strlen( new_customers_buffer );
+
+                                if( ( result_size = fwrite(
+                                          new_customers_buffer, sizeof( char ), new_customers_buffer_length, fptr2 ) )
+                                    != new_customers_buffer_length )
+                                {
+                                    nwipe_log(
+                                        NWIPE_LOG_ERROR,
+                                        "func:write_customer_csv_entry:fwrite: Error result_size = %i not as expected",
+                                        result_size );
+                                }
+                                else
+                                {
+                                    /* Remove the customer.csv.backup file if it exists */
+                                    if( remove( nwipe_customers_file_backup ) != 0 )
+                                    {
+                                        nwipe_log(
+                                            NWIPE_LOG_ERROR, "Unable to remove %s", nwipe_customers_file_backup_tmp );
+                                    }
+                                    else
+                                    {
+                                        /* Rename the customers.csv.backup.tmp file to customers.csv.backup */
+                                        if( rename( nwipe_customers_file_backup_tmp, nwipe_customers_file_backup )
+                                            != 0 )
+                                        {
+                                            nwipe_log( NWIPE_LOG_ERROR,
+                                                       "Unable to rename %s to %s",
+                                                       nwipe_customers_file,
+                                                       nwipe_customers_file_backup_tmp );
+                                        }
+                                        nwipe_log( NWIPE_LOG_INFO,
+                                                   "Succesfully write new customer entry to %s",
+                                                   nwipe_customers_file );
+                                    }
+                                    nwipe_log( NWIPE_LOG_INFO, "p_csv_buffer = %li", csv_buffer );
+                                }
+                                fclose( fptr2 );
+                            }
+                        }
+                        fclose( fptr );
+                    }
+                }
+                free( new_customers_buffer );
+            }
+            free( customers_buffer );
+        }
+        free( csv_buffer );
+    }
 }
