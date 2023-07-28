@@ -573,6 +573,7 @@ int main( int argc, char** argv )
             if( nwipe_options.dryrun )
             {
                 c2[i]->wipe_status = 0;
+                c1[i]->bytes_erased = c2[i]->device_size;
                 time( &c2[i]->start_time );
                 if( nwipe_options.dry_start_time.tm_hour || nwipe_options.dry_start_time.tm_mday )
                 {
