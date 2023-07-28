@@ -379,17 +379,11 @@ int nwipe_options_parse( int argc, char** argv )
             case 'd': /* Start date */
 
                 strptime( optarg, "%Y-%m-%d", &nwipe_options.dry_start_time );
-                fprintf( stderr, "optarg=%s", optarg );
-                strftime( buffer, 26, "%Y:%m:%d %H:%M:%S", &nwipe_options.dry_start_time );
-                fprintf( stderr, "startdate=%s", buffer );
                 break;
 
             case 't': /* Start time */
 
                 strptime( optarg, "%H:%M:%S", &nwipe_options.dry_start_time );
-                fprintf( stderr, "optarg=%s", optarg );
-                strftime( buffer, 26, "%Y:%m:%d %H:%M:%S", &nwipe_options.dry_start_time );
-                fprintf( stderr, "starttime=%s", buffer );
                 break;
 
             case 'h': /* Display help. */
@@ -542,9 +536,9 @@ void nwipe_options_log( void )
     nwipe_log( NWIPE_LOG_NOTICE, "  sync     = %i", nwipe_options.sync );
     nwipe_log( NWIPE_LOG_NOTICE, "  dryrun   = %i", nwipe_options.dryrun );
     strftime( buffer, 26, "%Y-%m-%d", &nwipe_options.dry_start_time );
-    nwipe_log( NWIPE_LOG_NOTICE, "  startdate= %Y-%m-%d", buffer );
+    nwipe_log( NWIPE_LOG_NOTICE, "  startdate= %s", buffer );
     strftime( buffer, 26, "%H:%M:%S", &nwipe_options.dry_start_time );
-    nwipe_log( NWIPE_LOG_NOTICE, "  starttime= %H:%M:%S", buffer );
+    nwipe_log( NWIPE_LOG_NOTICE, "  starttime= %s", buffer );
 
     switch( nwipe_options.verify )
     {
