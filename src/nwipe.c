@@ -596,6 +596,7 @@ int main( int argc, char** argv )
                 c2[i]->end_time = c2[i]->start_time
                     + c2[i]->Calculated_real_max_size_in_bytes
                         / ( 150982269 * ( 1 + generateRandomDouble( -0.5, 0.5 ) ) );
+                c2[i]->throughput = c2[i]->bytes_erased / ( c2[i]->start_time - c2[i]->end_time );
             }
             else
             {
