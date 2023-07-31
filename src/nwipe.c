@@ -106,6 +106,7 @@ int main( int argc, char** argv )
     /* Auxiliar time variables */
     struct tm* timestamp_now;
     struct tm* timestamp_new;
+    double time_secs;
 
     /* Two arrays are used, containing pointers to the the typedef for each disk */
     /* The first array (c1) points to all devices, the second points to only     */
@@ -593,16 +594,16 @@ int main( int argc, char** argv )
                     }
                     c2[i]->start_time = mktime( timestamp_now );
                 }
-                c2[i]->throughput = c2[i]->Calculated_real_max_size_in_bytes
-                    / ( 150982269 * ( 1 + generateRandomDouble( -0.05, 0.05 ) ) );
-                c2[i]->end_time = c2[i]->start_time + c2[i]->throughput;
+                time_secs = c2[i]->Calculated_real_max_size_in_bytes
+                    / ( 150982269.0 * ( 1.0 + generateRandomDouble( -0.05, 0.05 ) ) );
+                c2[i]->end_time = c2[i]->start_time + (long int) time_secs;
+                c2[i]->throughput = c2[i]->bytes_erased / time_secs;
                 nwipe_log( NWIPE_LOG_NOTICE,
                            "%s, bytes erased/time(secs)/throughput %llu/%li/%lli",
                            c2[i]->device_name,
                            c2[i]->bytes_erased,
-                           c2[i]->throughput,
-                           c2[i]->bytes_erased / c2[i]->throughput );
-                c2[i]->throughput = c2[i]->bytes_erased / c2[i]->throughput;
+                           (long int) time_secs,
+                           c2[i]->throughput );
             }
             else
             {
