@@ -594,14 +594,14 @@ int main( int argc, char** argv )
                     c2[i]->start_time = mktime( timestamp_now );
                 }
                 c2[i]->throughput = c2[i]->Calculated_real_max_size_in_bytes
-                    / ( 150982269 * ( 1 + generateRandomDouble( -0.5, 0.5 ) ) );
+                    / ( 150982269 * ( 1 + generateRandomDouble( -0.05, 0.05 ) ) );
                 c2[i]->end_time = c2[i]->start_time + c2[i]->throughput;
                 nwipe_log( NWIPE_LOG_NOTICE,
-                           "%s, bytes erased/time(secs)/throughput %llu/%i/%llu",
+                           "%s, bytes erased/time(secs)/throughput %llu/%li/%lli",
                            c2[i]->device_name,
                            c2[i]->bytes_erased,
-                           c2[i]->bytes_erased / c2[i]->throughput,
-                           c2[i]->throughput );
+                           c2[i]->throughput,
+                           c2[i]->bytes_erased / c2[i]->throughput );
                 c2[i]->throughput = c2[i]->bytes_erased / c2[i]->throughput;
             }
             else
